@@ -63,7 +63,7 @@ function star(x, y, s, face) {
   ctx.fillStyle = '#fffbe0'; ctx.beginPath(); ctx.moveTo(0, -s * .25); ctx.lineTo(s * .6, 0); ctx.lineTo(0, s * .25); ctx.lineTo(-s * .1, 0); ctx.fill(); ctx.restore();
 }
 // ---------- wapperende cape: de achterkant van de sprite wordt in 8 frames vervormd (golf + terugtrekken) ----------
-const WN = 8, WP = { run: { amp: 7.5, pull: 12, ph: 5.5 }, jump: { amp: 5, pull: 9, ph: 4, lift: 4 }, idle: { amp: 1.6, pull: 1.5, ph: 4 } };
+const WN = 8, WP = { run: { amp: 13, pull: 19, ph: 7, turb: .45 }, jump: { amp: 9, pull: 13, ph: 5.5, lift: 6, turb: .4 }, idle: { amp: 1.8, pull: 1.8, ph: 4, turb: .2 } };
 const smooth = (a, b, v) => { const x = Math.max(0, Math.min(1, (v - a) / (b - a))); return x * x * (3 - 2 * x); };
 function warpSet(im, mode) {
   let m = PH.warp.get(im); if (!m) PH.warp.set(im, m = {}); if (m[mode]) return m[mode];
@@ -72,9 +72,9 @@ function warpSet(im, mode) {
     const [c, g] = mk(w + pad * 2, h + pad * 2), phi = Math.PI * 2 * i / WN; g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'medium';
     for (let y = 0; y < h; y += cell) for (let x = 0; x < w; x += cell) {
       const cw = Math.min(cell, w - x), ch = Math.min(cell, h - y), xn = (x + cw / 2) / w, yn = (y + ch / 2) / h;
-      const wt = smooth(.26, .56, yn) * Math.pow(1 - xn, 1.25);                       // alleen onderrug/achterkant (cape, sjaal)
-      const dy = P.amp * wt * Math.sin(phi - xn * P.ph + yn * 2) - (P.lift || 0) * wt;
-      const dx = -P.pull * wt * (.78 + .22 * Math.sin(phi - yn * 3));
+      const wt = smooth(.2, .5, yn) * Math.pow(1 - xn, 1.1);                       // alleen onderrug/achterkant (cape, sjaal)
+      const dy = P.amp * wt * (Math.sin(phi - xn * P.ph + yn * 2) + P.turb * Math.sin(phi * 2 - xn * P.ph * 1.8 + yn * 5)) - (P.lift || 0) * wt;
+      const dx = -P.pull * wt * (.7 + .3 * Math.sin(phi - yn * 3) + P.turb * .5 * Math.sin(phi * 2 + xn * 6));
       g.drawImage(im, x, y, cw, ch, x + pad + dx, y + pad + dy, cw + .7, ch + .7);
     }
     frames.push(c);
@@ -89,7 +89,7 @@ function photoChar(im, e, face, pose, anim, shoot, hgt, alpha, handY, glowCol, s
   else sy = 1 + .012 * Math.sin(t / 18);
   const recoil = shoot ? -.8 * face : 0;
   ctx.save(); ctx.translate(Math.round(cx * 2) / 2 + recoil, Math.round((base + bob) * 2) / 2); ctx.scale(face * sx, sy); ctx.rotate(rot); if (alpha < 1) ctx.globalAlpha = alpha;
-  const ws = warpSet(im, pose), fr = ws.frames[Math.floor(t * (pose === 'run' ? .42 : pose === 'jump' ? .25 : .08) + seed) % WN], k = hgt / im.height;
+  const ws = warpSet(im, pose), fr = ws.frames[Math.floor(t * (pose === 'run' ? .62 : pose === 'jump' ? .38 : .08) + seed) % WN], k = hgt / im.height;
   photoDraw(fr, -sw / 2 - ws.pad * k, -hgt - ws.pad * k, fr.width * k, fr.height * k); ctx.restore();
   const hx = cx + face * sw * .5, hy = base - hgt + hgt * handY;
   glow(cx + face * sw * .1, base - hgt * .74, 8, glowCol, .35 * alpha);
