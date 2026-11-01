@@ -35,7 +35,10 @@ function syncMusic() {
   } catch (e) {}
 }
 function unlockMusic() { musicUnlocked = true; syncMusic(); }
-// Muziek start pas als je op het titelscherm op START drukt (die toets/tik geeft de browser toestemming om geluid af te spelen).
+// Muziek speelt op het titelscherm. Browsers blokkeren geluid vóór de eerste toets/tik: we proberen direct te starten
+// en anders start het bij de allereerste toets/tik/klik (ook de START-knop).
+['keydown','pointerdown','touchend','click'].forEach(ev => addEventListener(ev, unlockMusic, { passive: true }));
+musicUnlocked = true; syncMusic();
 document.addEventListener('visibilitychange', () => { if (bgm) { if (document.hidden) bgm.pause(); else syncMusic(); } });
 function toggleMute() { muted = !muted; try { localStorage.setItem('p1_muted', muted ? '1' : '0'); } catch (e) {} if (bgm) bgm.muted = muted; }
 
