@@ -1,6 +1,6 @@
 // photo.js - echte afbeeldingen (uitgeknipt uit de referentieplaatjes), met procedurele terugval uit art.js.
 // Alle sprites kijken in het bronbeeld: spelers/vijanden naar RECHTS, drone en bazen naar LINKS.
-const PH = { tint: {} };
+const PH = { tint: {}, warp: new WeakMap() };
 const have = (...k) => k.every(x => IMG[x]);
 function photoDraw(im, ...a) { ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(im, ...a); ctx.imageSmoothingEnabled = false; }
 function tinted(key, src, fn) {
@@ -62,7 +62,26 @@ function star(x, y, s, face) {
   ctx.fillStyle = '#ffd84a'; ctx.beginPath(); ctx.moveTo(0, -s * .55); ctx.lineTo(s * .22, -s * .15); ctx.lineTo(s, 0); ctx.lineTo(s * .22, s * .15); ctx.lineTo(0, s * .55); ctx.lineTo(-s * .18, 0); ctx.fill();
   ctx.fillStyle = '#fffbe0'; ctx.beginPath(); ctx.moveTo(0, -s * .25); ctx.lineTo(s * .6, 0); ctx.lineTo(0, s * .25); ctx.lineTo(-s * .1, 0); ctx.fill(); ctx.restore();
 }
-function photoChar(im, e, face, pose, anim, shoot, hgt, alpha, handY, glowCol) {
+// ---------- wapperende cape: de achterkant van de sprite wordt in 8 frames vervormd (golf + terugtrekken) ----------
+const WN = 8, WP = { run: { amp: 7.5, pull: 12, ph: 5.5 }, jump: { amp: 5, pull: 9, ph: 4, lift: 4 }, idle: { amp: 1.6, pull: 1.5, ph: 4 } };
+const smooth = (a, b, v) => { const x = Math.max(0, Math.min(1, (v - a) / (b - a))); return x * x * (3 - 2 * x); };
+function warpSet(im, mode) {
+  let m = PH.warp.get(im); if (!m) PH.warp.set(im, m = {}); if (m[mode]) return m[mode];
+  const P = WP[mode], w = im.width, h = im.height, pad = Math.ceil(P.pull + P.amp + (P.lift || 0)) + 3, cell = 4, frames = [];
+  for (let i = 0; i < WN; i++) {
+    const [c, g] = mk(w + pad * 2, h + pad * 2), phi = Math.PI * 2 * i / WN; g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'medium';
+    for (let y = 0; y < h; y += cell) for (let x = 0; x < w; x += cell) {
+      const cw = Math.min(cell, w - x), ch = Math.min(cell, h - y), xn = (x + cw / 2) / w, yn = (y + ch / 2) / h;
+      const wt = smooth(.26, .56, yn) * Math.pow(1 - xn, 1.25);                       // alleen onderrug/achterkant (cape, sjaal)
+      const dy = P.amp * wt * Math.sin(phi - xn * P.ph + yn * 2) - (P.lift || 0) * wt;
+      const dx = -P.pull * wt * (.78 + .22 * Math.sin(phi - yn * 3));
+      g.drawImage(im, x, y, cw, ch, x + pad + dx, y + pad + dy, cw + .7, ch + .7);
+    }
+    frames.push(c);
+  }
+  return m[mode] = { frames, pad };
+}
+function photoChar(im, e, face, pose, anim, shoot, hgt, alpha, handY, glowCol, seed = 0) {
   const sw = im.width * hgt / im.height, cx = e.x + e.w / 2 - camX, base = e.y + e.h;
   let bob = 0, sx = 1, sy = 1, rot = 0;
   if (pose === 'run') { const ph = Math.sin(anim * Math.PI); bob = -Math.abs(ph) * 1.4; rot = .06; sy = 1 + .028 * ph; }
@@ -70,7 +89,8 @@ function photoChar(im, e, face, pose, anim, shoot, hgt, alpha, handY, glowCol) {
   else sy = 1 + .012 * Math.sin(t / 18);
   const recoil = shoot ? -.8 * face : 0;
   ctx.save(); ctx.translate(Math.round(cx * 2) / 2 + recoil, Math.round((base + bob) * 2) / 2); ctx.scale(face * sx, sy); ctx.rotate(rot); if (alpha < 1) ctx.globalAlpha = alpha;
-  photoDraw(im, -sw / 2, -hgt, sw, hgt); ctx.restore();
+  const ws = warpSet(im, pose), fr = ws.frames[Math.floor(t * (pose === 'run' ? .42 : pose === 'jump' ? .25 : .08) + seed) % WN], k = hgt / im.height;
+  photoDraw(fr, -sw / 2 - ws.pad * k, -hgt - ws.pad * k, fr.width * k, fr.height * k); ctx.restore();
   const hx = cx + face * sw * .5, hy = base - hgt + hgt * handY;
   glow(cx + face * sw * .1, base - hgt * .74, 8, glowCol, .35 * alpha);
   if (shoot) { glow(hx + face * 3, hy, 14, 'rgba(255,220,90,.9)', .85); star(hx + face * 1, hy, 11, face); }
@@ -86,7 +106,7 @@ function drawEnemy(e) {
   if (e.type === 'turret' || !have('spr_drone', 'spr_sigil')) return drawEnemyProc(e);
   if (e.type === 'grunt') {
     const im = tinted('grunt', IMG.spr_sigil, (r, g, b, a) => (b > r + 6 && r < g + 40) ? [r * 1.5 + 10, g * .85, b * .6, a] : [r, g, b, a]);
-    return photoChar(im, e, e.face, e.vx ? 'run' : 'idle', e.t / 6, !e.vx, 33, 1, .53, 'rgba(255,150,40,.6)');
+    return photoChar(im, e, e.face, e.vx ? 'run' : 'idle', e.t / 6, !e.vx, 33, 1, .53, 'rgba(255,150,40,.6)', (e.x | 0) % WN);
   }
   const im = IMG.spr_drone, w = 20, h = im.height * w / im.width, cx = e.x + e.w / 2 - camX, bob = Math.sin(t / 8) * .6;
   ctx.save(); ctx.translate(Math.round(cx), Math.round(e.y + 5 + bob)); ctx.scale(e.face > 0 ? -1 : 1, 1); photoDraw(im, -w / 2, -h / 2, w, h); ctx.restore();
