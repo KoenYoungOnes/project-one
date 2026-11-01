@@ -18,9 +18,31 @@ const SPRITE_FILES = {
 const IMG = {}; let pending = Object.keys(SPRITE_FILES).length; const loadStart = performance.now();
 for (const [k, src] of Object.entries(SPRITE_FILES)) { const i = new Image(); i.onload = () => { IMG[k] = i; pending--; }; i.onerror = () => { pending--; }; i.src = src; }
 
+// ---------- Muziek ----------
+// Titelscherm en alle levels gebruiken nu hetzelfde nummer. Nieuwe nummers per level: zet het pad in LEVEL_MUSIC (index 0 = level 1).
+const MUSIC_DEFAULT = 'assets/audio/winning_streak.mp3';
+const LEVEL_MUSIC = [null, null, null, null];     // bijv. 'assets/audio/level2.mp3'; null = standaardnummer
+let bgm = null, bgmSrc = '', musicUnlocked = false, muted = false;
+try { muted = localStorage.getItem('p1_muted') === '1'; } catch (e) {}
+function wantedMusic() { return (state === 'play' || state === 'dead' || state === 'clear') && LV ? (LEVEL_MUSIC[LEVELS.indexOf(LV)] || MUSIC_DEFAULT) : MUSIC_DEFAULT; }
+function syncMusic() {
+  if (!musicUnlocked) return;
+  try {
+    const want = wantedMusic();
+    if (want !== bgmSrc) { if (bgm) bgm.pause(); bgm = new Audio(want); bgm.loop = true; bgm.volume = .5; bgmSrc = want; }
+    bgm.muted = muted;
+    if (bgm.paused && !document.hidden) bgm.play().catch(() => {});
+  } catch (e) {}
+}
+function unlockMusic() { musicUnlocked = true; syncMusic(); }
+addEventListener('keydown', unlockMusic); addEventListener('pointerdown', unlockMusic); addEventListener('touchstart', unlockMusic, { passive: true });
+document.addEventListener('visibilitychange', () => { if (bgm) { if (document.hidden) bgm.pause(); else syncMusic(); } });
+function toggleMute() { muted = !muted; try { localStorage.setItem('p1_muted', muted ? '1' : '0'); } catch (e) {} if (bgm) bgm.muted = muted; }
+
 // ---------- Geluid (kleine 8-bit bleeps) ----------
 let actx = null;
 function sfx(f, d = .08, type = 'square', slide = 0) {
+  if (muted) return;
   try {
     actx = actx || new (window.AudioContext || window.webkitAudioContext)();
     const o = actx.createOscillator(), g = actx.createGain();
@@ -33,7 +55,7 @@ function sfx(f, d = .08, type = 'square', slide = 0) {
 // ---------- Input ----------
 const keys = {}, pressed = {};
 const MAP = { ArrowLeft:'left', KeyA:'left', ArrowRight:'right', KeyD:'right', ArrowUp:'up', KeyW:'up', ArrowDown:'down', KeyS:'down',
-  KeyZ:'jump', Space:'jump', KeyX:'shoot', KeyJ:'shoot', KeyC:'special', KeyK:'special', Enter:'start', Escape:'back' };
+  KeyZ:'jump', Space:'jump', KeyX:'shoot', KeyJ:'shoot', KeyC:'special', KeyK:'special', KeyM:'mute', Enter:'start', Escape:'back' };
 addEventListener('keydown', e => { const k = MAP[e.code]; if (!k) return; e.preventDefault(); if (!keys[k]) pressed[k] = true; keys[k] = true; });
 addEventListener('keyup', e => { const k = MAP[e.code]; if (k) { e.preventDefault(); keys[k] = false; } });
 
@@ -226,6 +248,7 @@ function updateBoss() {
 // ---------- Update ----------
 function update() {
   t++;
+  if (pressed.mute) toggleMute();
   if (state === 'title') { if (pressed.start || pressed.jump) { state = 'select'; sel = charId; sfx(660, .1); } return; }
   if (state === 'select') {
     if (pressed.left || pressed.right) { sel = 1 - sel; sfx(440, .05); }
@@ -345,6 +368,7 @@ function bar(x, val, col, label, alt) {
   txt(label, x + 5, 81, 6, '#aab', 'center');
 }
 function drawHUD() {
+  if (muted) txt('MUTE', W - 6, 10, 6, '#c66', 'right');
   bar(8, player.hp, '#f4c8a8', 'HP'); bar(26, player.en, '#f09a50', 'EN', true);
   if (boss) { const v = boss.intro > 0 ? Math.floor((60 - boss.intro) / 60 * 28) : Math.ceil(boss.hp / boss.max * 28); bar(W - 20, v, 'boss', BOSSES[boss.id].letter, false); }
 }
@@ -432,6 +456,6 @@ let last = performance.now(), acc = 0;
 function frame(now) {
   acc += Math.min(100, now - last); last = now;
   while (acc >= 1000 / 60) { update(); for (const k in pressed) pressed[k] = false; acc -= 1000 / 60; }
-  render(); requestAnimationFrame(frame);
+  syncMusic(); render(); requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
