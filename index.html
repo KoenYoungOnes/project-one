@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Project One</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;height:100%;background:#05050c;color:#778;font:10px 'Press Start 2P',monospace}
+  body{display:flex;flex-direction:column;align-items:center;justify-content:center}
+  canvas{width:min(100vw,calc((100vh - 40px)*384/224));aspect-ratio:384/224;image-rendering:pixelated;background:#000}
+  p{margin:10px;text-align:center;line-height:1.6}
+  html,body{overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none}
+  #pad{display:none;width:100%;max-width:640px;padding:8px 14px calc(8px + env(safe-area-inset-bottom));box-sizing:border-box;justify-content:space-between;align-items:center;gap:8px}
+  body.touch #pad{display:flex} body.touch p{display:none}
+  #pad button{font:bold 16px 'Press Start 2P',monospace;color:#dde;background:rgba(60,64,90,.85);border:2px solid #8a90b8;border-radius:14px;touch-action:none;-webkit-tap-highlight-color:transparent;padding:0}
+  #pad button.on{background:#c23030;border-color:#fff}
+  .dpad{display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(3,52px);gap:4px}
+  .dpad button:nth-child(1){grid-area:1/2}.dpad button:nth-child(2){grid-area:2/1}.dpad button:nth-child(3){grid-area:2/3}.dpad button:nth-child(4){grid-area:3/2}
+  .mid{display:flex;flex-direction:column;gap:8px}.mid button{font-size:9px;padding:10px 8px}
+  .act{display:flex;gap:10px;align-items:flex-end}.act button{width:64px;height:64px;border-radius:50%}.act button:nth-child(1){margin-bottom:34px}.act button:nth-child(2){margin-bottom:14px}
+  @media (orientation:landscape) and (max-height:520px){
+    body.touch{justify-content:center}
+    body.touch canvas{width:min(100vw,calc(100vh*384/224))}
+    body.touch #pad{position:fixed;left:0;right:0;bottom:0;max-width:none;pointer-events:none;opacity:.7}
+    body.touch #pad button{pointer-events:auto}
+    .dpad{grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,46px)}
+  }
+</style>
+</head>
+<body>
+<canvas id="c" width="384" height="224"></canvas>
+<p>Pijltjes/WASD = bewegen · Z/Spatie = springen · X/J = schieten · C/K = special · Enter = OK · Esc = terug</p>
+<div id="pad">
+  <div class="dpad"><button data-k="up">&#9650;</button><button data-k="left">&#9664;</button><button data-k="right">&#9654;</button><button data-k="down">&#9660;</button></div>
+  <div class="mid"><button data-k="start">START</button><button data-k="back">TERUG</button></div>
+  <div class="act"><button data-k="special">C</button><button data-k="shoot">B</button><button data-k="jump">A</button></div>
+</div>
+<script src="game.js"></script>
+</body>
+</html>
