@@ -1,24 +1,22 @@
 // PROJECT ONE - Mega Man-achtige platformer. 384x224 interne resolutie, 16px tiles.
-const W = 384, H = 224, T = 16, ROWS = 14, ARENA = 24;
+const W = 384, H = 224, T = 16, ROWS = 14, ARENA = 15;
+const ZOOM = 1.6, VW = 384 / 1.6, VH = 224 / 1.6;   // camera-zoom (zoals in het referentieplaatje: ~15 x 9 tegels in beeld)
+const S = 3;                                   // render-schaal: 1152x672 pixels op het scherm
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
-ctx.imageSmoothingEnabled = false;
+cv.width = W * S; cv.height = H * S; ctx.imageSmoothingEnabled = false;
 const FONT = "'Press Start 2P',monospace";
 if (document.fonts && document.fonts.load) document.fonts.load('8px "Press Start 2P"').catch(() => {});
 
-// ---------- Sprites (optioneel): zet PNG's in assets/ en haal de regels hieronder uit commentaar ----------
-// Spelers/vijanden: één afbeelding, kijkt naar rechts, wordt automatisch gespiegeld. Voeten onderaan.
+// ---------- Afbeeldingen (uitgeknipt uit de referentieplaatjes; zie assets/) ----------
 const SPRITE_FILES = {
-  boss1_full:'assets/boss1_full.jpg', boss2_full:'assets/boss2_full.jpg', boss3_full:'assets/boss3_full.jpg', boss4_full:'assets/boss4_full.jpg',
-  // title:'assets/title.png',            // volledig titelscherm (384x224)
-  // player0:'assets/player_visor.png', player1:'assets/player_sigil.png',
-  // portrait0:'assets/portrait_visor.png', portrait1:'assets/portrait_sigil.png',
-  // grunt:'assets/grunt.png', drone:'assets/drone.png', turret:'assets/turret.png',
-  // boss1:'assets/boss1.png', boss2:'assets/boss2.png', boss3:'assets/boss3.png', boss4:'assets/boss4.png',
-  // boss1_portrait:'assets/boss1_portrait.png', /* idem boss2..4 */
-  // tiles0:'assets/tiles_factory.png', bg0:'assets/bg_factory.png', /* idem 1..3 */
+  title: 'assets/title.jpg', floor: 'assets/floor.png', bg0: 'assets/bg0.png', hud_bar: 'assets/hud_bar.png',
+  portrait0: 'assets/portrait0.png', portrait1: 'assets/portrait1.png',
+  spr_visor: 'assets/spr/visor.png', spr_sigil: 'assets/spr/sigil.png', spr_drone: 'assets/spr/drone.png',
+  spr_boss1: 'assets/spr/boss1.png', spr_boss2: 'assets/spr/boss2.png', spr_boss3: 'assets/spr/boss3.png', spr_boss4: 'assets/spr/boss4.png',
+  boss1_full: 'assets/boss1_full.jpg', boss2_full: 'assets/boss2_full.jpg', boss3_full: 'assets/boss3_full.jpg', boss4_full: 'assets/boss4_full.jpg',
 };
-const IMG = {};
-for (const [k, src] of Object.entries(SPRITE_FILES)) { const i = new Image(); i.onload = () => IMG[k] = i; i.src = src; }
+const IMG = {}; let pending = Object.keys(SPRITE_FILES).length; const loadStart = performance.now();
+for (const [k, src] of Object.entries(SPRITE_FILES)) { const i = new Image(); i.onload = () => { IMG[k] = i; pending--; }; i.onerror = () => { pending--; }; i.src = src; }
 
 // ---------- Geluid (kleine 8-bit bleeps) ----------
 let actx = null;
@@ -68,10 +66,10 @@ const PAL = [
 const EPAL = { hood: '#3b4260', cloak: '#4a5170', cloak2: '#323852', trim: '#c23030' };
 
 const BOSSES = [null,
-  { letter: 'NC', col: '#2a5ac0', col2: '#b8c4d8', acc: '#f0a020', w: 28, h: 32, hp: 24 },
-  { letter: 'W',  col: '#c8381a', col2: '#b8c4d8', acc: '#f0a020', w: 28, h: 32, hp: 28 },
-  { letter: 'H',  col: '#e87a1a', col2: '#b8c4d8', acc: '#222',    w: 28, h: 32, hp: 32 },
-  { letter: 'P',  col: '#5a2a7a', col2: '#3a6a9a', acc: '#f0a020', w: 40, h: 48, hp: 44 }];
+  { letter: 'NC', col: '#2a5ac0', col2: '#b8c4d8', acc: '#f0a020', w: 32, h: 46, hp: 24 },
+  { letter: 'W',  col: '#c8381a', col2: '#b8c4d8', acc: '#f0a020', w: 32, h: 46, hp: 28 },
+  { letter: 'H',  col: '#e87a1a', col2: '#b8c4d8', acc: '#222',    w: 32, h: 46, hp: 32 },
+  { letter: 'P',  col: '#5a2a7a', col2: '#3a6a9a', acc: '#f0a020', w: 38, h: 56, hp: 44 }];
 
 // ---------- Levels ----------
 const LEVELS = [
@@ -107,7 +105,7 @@ function buildLevel(L) {
     if (!CHECK && c > L.len / 2) CHECK = c * T;
     if (R() < .8) E('grunt', c + n - 2, 12);
     if (L.diff > 1 && R() < .5) E('turret', c + ri(1, n - 2), 12);
-    if (R() < .6) E('drone', c + ri(2, n), ri(5, 8));
+    if (R() < .6) E('drone', c + ri(2, n), ri(7, 9));
     c += n;
     if (c >= L.len - 8) break;
     // hindernis
@@ -119,10 +117,10 @@ function buildLevel(L) {
     else if (k === 5) { // hoge route over spikes
       const w = 12; for (let i = 0; i < w; i++) grid[11][c+i] = 2;
       blk(c + 1, 10, 3); blk(c + 6, 10, 3); blk(c + 11, 10, 1);
-      E('drone', c + 4, 6); E('drone', c + 9, 7); c += w;
+      E('drone', c + 4, 8); E('drone', c + 9, 9); c += w;
     } else { // afgrond met zwevend platform (hard)
       for (let i = 0; i < 9; i++) { grid[12][c+i] = 0; grid[13][c+i] = 0; }
-      blk(c + 1, 10, 2); blk(c + 5, 9, 2); E('drone', c + 4, 6); c += 9;
+      blk(c + 1, 10, 2); blk(c + 5, 9, 2); E('drone', c + 4, 8); c += 9;
     }
     // altijd een landingsstrook
     c += 3;
@@ -136,6 +134,7 @@ function buildLevel(L) {
 // ---------- State ----------
 let state = 'title', sel = 0, stageSel = 0, charId = 0, cleared = [false, false, false, false];
 try { cleared = JSON.parse(localStorage.getItem('p1_cleared')) || cleared; } catch (e) {}
+let camY = 0;
 let player, enemies, bullets, ebullets, particles, items, boss, locked, camX, spawnX, t = 0, clearT = 0;
 
 function startLevel(i) {
@@ -144,14 +143,14 @@ function startLevel(i) {
 function reset() {
   for (let r = 0; r < 12; r++) grid[r][DOOR] = 0; locked = false; boss = null;
   const ch = CHARS[charId];
-  player = { x: spawnX, y: 10 * T, w: 12, h: 20, vx: 0, vy: 0, ground: false, face: 1, hp: 28, en: 28, inv: 0, shootT: 0, anim: 0, dash: 0, enT: 0 };
+  player = { x: spawnX, y: 10 * T, w: 13, h: 26, vx: 0, vy: 0, ground: false, face: 1, hp: 28, en: 28, inv: 0, shootT: 0, anim: 0, dash: 0, enT: 0 };
   enemies = ENEMY_DEFS.filter(d => d.x > spawnX + 6 * T).map(d => {
     const big = d.type === 'turret', fly = d.type === 'drone';
-    const w = fly ? 14 : 14, h = fly ? 10 : big ? 14 : 20;
+    const w = 14, h = fly ? 10 : big ? 14 : 24;
     return { type: d.type, x: d.x, y: d.row * T + (fly ? 0 : T - h), baseY: d.row * T, w: fly ? 14 : 14, h, vx: d.type === 'grunt' ? -.5 : 0, vy: 0, hp: big ? 3 : d.type === 'grunt' ? 2 : 1, t: (d.x * 7) % 90, face: -1, dead: false };
   });
   bullets = []; ebullets = []; particles = []; items = [];
-  camX = Math.max(0, Math.min((COLS * T - W), player.x - W / 2));
+  camX = Math.max(0, Math.min((COLS * T - VW), player.x - VW / 2)); camY = Math.max(0, Math.min(ROWS * T - VH, player.y - VH * .6));
 }
 const hit = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 
@@ -188,7 +187,7 @@ function drop(x, y) {
 function spawnBoss() {
   const id = LV.boss;
   const D = BOSSES[id];
-  boss = { id, x: (DOOR + 17) * T, y: 6 * T, w: D.w, h: D.h, hp: D.hp, max: D.hp, vx: 0, vy: 0, t: 0, face: -1, ground: false, flash: 0, intro: 60, air: false, charge: 0 };
+  boss = { id, x: (DOOR + 11) * T, y: 4 * T, w: D.w, h: D.h, hp: D.hp, max: D.hp, vx: 0, vy: 0, t: 0, face: -1, ground: false, flash: 0, intro: 60, air: false, charge: 0 };
 }
 function updateBoss() {
   const b = boss, p = player; if (!b) return;
@@ -199,22 +198,22 @@ function updateBoss() {
   const jumpAt = (sp, vy) => { if (b.ground) { b.vy = vy; b.vx = toP * sp; b.face = toP; } };
   if (b.id === 1) {                       // springt, schokgolf bij landing
     if (b.ground) { b.vx = 0; if (b.air) { b.air = false; sfx(90, .2, 'sawtooth');
-      ebullets.push({ x: b.x + 4, y: b.y + b.h - 6, w: 8, h: 6, vx: -2, vy: 0 }, { x: b.x + 16, y: b.y + b.h - 6, w: 8, h: 6, vx: 2, vy: 0 }); }
+      ebullets.push({ x: b.x, y: b.y + b.h - 6, w: 8, h: 6, vx: -2, vy: 0 }, { x: b.x + b.w - 8, y: b.y + b.h - 6, w: 8, h: 6, vx: 2, vy: 0 }); }
       if (b.t % 70 === 0) { jumpAt(1.6, -5.2); b.air = true; } }
     walk();
   } else if (b.id === 2) {                // zweeft, vuurt gericht
-    b.x += (p.x - 60 * toP - b.x) * .01; b.y = 70 + Math.sin(b.t / 25) * 35; b.face = toP;
-    b.x = Math.max((DOOR + 2) * T, Math.min((DOOR + 22) * T - b.w, b.x));
-    if (b.t % 50 === 0) for (let i = -1; i <= 1; i++) { const a = Math.atan2(p.y - b.y, p.x - b.x) + i * .3; ebullets.push({ x: b.x + 12, y: b.y + 12, w: 5, h: 5, vx: Math.cos(a) * 2, vy: Math.sin(a) * 2 }); }
+    b.x += (p.x - 60 * toP - b.x) * .01; b.y = 108 + Math.sin(b.t / 25) * 22; b.face = toP;
+    b.x = Math.max((DOOR + 2) * T, Math.min((DOOR + 13) * T - b.w, b.x));
+    if (b.t % 50 === 0) for (let i = -1; i <= 1; i++) { const a = Math.atan2(p.y - b.y, p.x - b.x) + i * .3; ebullets.push({ x: b.x + b.w / 2, y: b.y + b.h * .4, w: 5, h: 5, vx: Math.cos(a) * 2, vy: Math.sin(a) * 2 }); }
   } else if (b.id === 3) {                // laadt op en stormt
     const ph = b.t % 150;
-    if (ph < 50) { b.vx = 0; b.face = toP; if (ph === 30) enemyShot(b.x + 14, b.y + 10, p.x, p.y + 8, 2.4); }
+    if (ph < 50) { b.vx = 0; b.face = toP; if (ph === 30) enemyShot(b.x + b.w / 2, b.y + b.h * .4, p.x, p.y + 8, 2.4); }
     else if (ph < 110) { b.vx = b.face * 3.2; if (b.hitWall) b.face = -b.face; }
     else { b.vx = 0; if (ph === 110) jumpAt(0, -4.5); }
     walk();
   } else {                                // eindbaas: alles samen
     const ph = b.t % 180;
-    if (ph < 60) { if (b.ground && ph % 60 === 0) jumpAt(1.8, -5.2); if (ph === 30) for (let i = -2; i <= 2; i++) { const a = Math.atan2(p.y - b.y, p.x - b.x) + i * .25; ebullets.push({ x: b.x + 12, y: b.y + 8, w: 5, h: 5, vx: Math.cos(a) * 2.2, vy: Math.sin(a) * 2.2 }); } }
+    if (ph < 60) { if (b.ground && ph % 60 === 0) jumpAt(1.8, -5.2); if (ph === 30) for (let i = -2; i <= 2; i++) { const a = Math.atan2(p.y - b.y, p.x - b.x) + i * .25; ebullets.push({ x: b.x + b.w / 2, y: b.y + b.h * .4, w: 5, h: 5, vx: Math.cos(a) * 2.2, vy: Math.sin(a) * 2.2 }); } }
     else if (ph < 130) { if (ph === 60) b.face = toP; b.vx = b.face * 3.4; if (b.hitWall) b.face = -b.face; }
     else { b.vx = 0; if (ph % 15 === 0) enemyShot(b.x + 14, b.y + 10, p.x, p.y + 8, 2.6); }
     if (b.ground && b.vx !== 0 && ph < 60 && b.t % 70 > 50) b.vx = 0;
@@ -284,7 +283,7 @@ function update() {
   // vijanden
   for (const e of enemies) {
     e.t++;
-    const near = Math.abs(e.x - p.x) < 170, dx = p.x < e.x ? -1 : 1;
+    const near = Math.abs(e.x - p.x) < 150, dx = p.x < e.x ? -1 : 1;
     if (e.type === 'grunt') {
       e.vy = Math.min(e.vy + .22, 4);
       if (near && Math.abs(p.y - e.y) < 36) { e.vx = 0; e.face = dx; if (e.t % 90 === 0) { enemyShot(e.x + 7 + dx * 7, e.y + 9, p.x + 6, p.y + 10, 1.8); sfx(500, .05); } }
@@ -323,8 +322,9 @@ function update() {
   // checkpoint, deur, camera
   if (p.x > CHECK && spawnX < CHECK) { spawnX = CHECK; sfx(1200, .15); }
   if (!locked && p.x > (DOOR + 3) * T) { locked = true; for (let r = 0; r < 12; r++) grid[r][DOOR] = 1; spawnX = (DOOR - 4) * T; spawnBoss(); sfx(80, .4, 'sawtooth'); }
-  const camT = Math.max(0, Math.min(COLS * T - W, p.x - W / 2 + 6));
-  camX = locked ? camX + ((COLS * T - W) - camX) * .08 : camT;   // arena: camera schuift naar de baas
+  const camT = Math.max(0, Math.min(COLS * T - VW, p.x - VW / 2 + 6));
+  camX = locked ? camX + ((COLS * T - VW) - camX) * .08 : camT;   // arena: camera schuift naar de baas
+  const camTY = Math.max(0, Math.min(ROWS * T - VH, p.y + p.h / 2 - VH * .6)); camY += (camTY - camY) * .12;
 }
 
 // ---------- Tekenen: UI ----------
@@ -332,17 +332,23 @@ function txt(s, x, y, size = 8, col = '#fff', al = 'center', sh = '#000') {
   ctx.font = `${size}px ${FONT}`; ctx.textAlign = al; ctx.textBaseline = 'alphabetic';
   if (sh) { ctx.fillStyle = sh; ctx.fillText(s, x + 1, y + 1); } ctx.fillStyle = col; ctx.fillText(s, x, y);
 }
-function bar(x, val, col, label) {
+function bar(x, val, col, label, alt) {
+  const im = IMG.hud_bar;
+  if (im) {
+    const y = 8, bw = 12, bh = 62, f = Math.max(0, Math.min(1, val / 28)), src = alt === true ? tinted('hud_alt', im, (r, g, b, a) => [r * .75, g * .85, b * 1.15, a]) : col === 'boss' ? tinted('hud_boss', im, (r, g, b, a) => [r * 1.1, g * .5, b * .5, a]) : im;
+    photoDraw(src, x, y, bw, bh); if (f < 1) R_(x + 1, y + 1, bw - 2, Math.round((bh - 2) * (1 - f)), '#000');
+    txt(label, x + 6, y + bh + 9, 6, '#aab', 'center'); return;
+  }
   R_(x - 3, 5, 16, 80, '#05050c'); R_(x - 3, 5, 16, 1, '#a0a8c8'); R_(x - 3, 5, 1, 80, '#a0a8c8'); R_(x + 12, 5, 1, 80, '#2a2e44'); R_(x - 3, 84, 16, 1, '#2a2e44');
   R_(x, 8, 10, 64, '#10121c');
   for (let i = 0; i < 28; i++) if (i < val) { const y = 70 - i * 2.25; R_(x + 1, y, 8, 1.6, col); R_(x + 1, y, 8, .7, '#fff6'); R_(x + 7, y, 2, 1.6, 'rgba(0,0,0,.25)'); }
   txt(label, x + 5, 81, 6, '#aab', 'center');
 }
 function drawHUD() {
-  bar(10, player.hp, '#f4c8a8', 'HP'); bar(28, player.en, '#f09a50', 'EN');
-  if (boss) { const v = boss.intro > 0 ? Math.floor((60 - boss.intro) / 60 * 28) : Math.ceil(boss.hp / boss.max * 28); bar(W - 22, v, '#ff5a5a', BOSSES[boss.id].letter); }
+  bar(8, player.hp, '#f4c8a8', 'HP'); bar(26, player.en, '#f09a50', 'EN', true);
+  if (boss) { const v = boss.intro > 0 ? Math.floor((60 - boss.intro) / 60 * 28) : Math.ceil(boss.hp / boss.max * 28); bar(W - 20, v, 'boss', BOSSES[boss.id].letter, false); }
 }
-function cityBG() { drawBG(3, t * .35); const g = ctx.createLinearGradient(0, H * .55, 0, H); g.addColorStop(0, 'rgba(5,5,16,0)'); g.addColorStop(1, 'rgba(5,5,16,.85)'); ctx.fillStyle = g; ctx.fillRect(0, H * .55, W, H * .45); }
+function cityBG() { ctx.save(); ctx.scale(ZOOM, ZOOM); drawBG(3, t * .35); ctx.restore(); const g = ctx.createLinearGradient(0, H * .55, 0, H); g.addColorStop(0, 'rgba(5,5,16,0)'); g.addColorStop(1, 'rgba(5,5,16,.85)'); ctx.fillStyle = g; ctx.fillRect(0, H * .55, W, H * .45); }
 function bigTitle() {
   glow(W / 2, 100, 150, 'rgba(200,30,30,.5)', .5 + .15 * Math.sin(t / 25));
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.lineJoin = 'round';
@@ -386,27 +392,35 @@ function drawStages() {
   });
   txt('ENTER = START   ESC = TERUG', W / 2, H - 8, 8, '#99a');
 }
-function drawBGThumb(th, x, y, w, h) { ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip(); ctx.translate(x, y); drawBG(th, 40 + th * 90); ctx.restore(); }
+function drawBGThumb(th, x, y, w, h) { ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip(); ctx.translate(x, y); ctx.scale(.675, .675); drawBG(th, 40 + th * 90); ctx.restore(); }
 
 function render() {
+  ctx.setTransform(S, 0, 0, S, 0, 0); ctx.imageSmoothingEnabled = false; ctx.globalAlpha = 1;
+  if (pending > 0 && performance.now() - loadStart < 8000) { ctx.fillStyle = '#05060c'; ctx.fillRect(0, 0, W, H); txt('LOADING...', W / 2, H / 2, 10); return; }
   if (state === 'title') {
-    if (IMG.title) ctx.drawImage(IMG.title, 0, 0, W, H); else { cityBG(); bigTitle(); }
-    if ((t >> 5) % 2) txt('▶ START SPEL ◀', W / 2, 196, 10); return;
+    if (IMG.title) { ctx.fillStyle = '#05060c'; ctx.fillRect(0, 0, W, H); const th_ = Math.round(W * IMG.title.height / IMG.title.width); photoDraw(IMG.title, 0, Math.round((H - th_) / 2), W, th_);
+      if ((t >> 5) % 2) txt('ENTER / TIK OM TE STARTEN', W / 2, 217, 6, '#99a'); }
+    else { cityBG(); bigTitle(); if ((t >> 5) % 2) txt('\u25B6 START SPEL \u25C0', W / 2, 196, 10); }
+    drawOverlay(); return;
   }
   if (state === 'select') {
-    cityBG(); ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillRect(0, 0, W, H); txt('SELECT PLAYER', W / 2, 28, 12);
-    portrait(34, 44, 140, 120, 0, sel === 0, CHARS[0].name); portrait(210, 44, 140, 120, 1, sel === 1, CHARS[1].name);
-    txt(CHARS[sel].desc, W / 2, 206, 8, '#ffb090'); return;
+    ctx.fillStyle = '#04060a'; ctx.fillRect(0, 0, W, H); const vg = ctx.createRadialGradient(W / 2, H / 2, 40, W / 2, H / 2, 260); vg.addColorStop(0, 'rgba(60,70,90,.25)'); vg.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+    txt('SELECT PLAYER', W / 2, 24, 12, '#fff', 'center', '#4a5a78');
+    [0, 1].forEach(i => { const x = i ? 208 : 44, y = 34, w = 132, h = 163, act = sel === i, im = IMG['portrait' + i];
+      if (act) { glow(x + w / 2, y + h / 2, 130, 'rgba(255,90,60,.55)', .45 + .15 * Math.sin(t / 10)); }
+      ctx.save(); ctx.translate(x + w / 2, y + h / 2); const sc = act ? 1.03 + .008 * Math.sin(t / 10) : .96; ctx.scale(sc, sc); ctx.globalAlpha = act ? 1 : .5;
+      if (im) photoDraw(im, -w / 2, -h / 2, w, h); else { R_(-w / 2, -h / 2, w, h, '#222'); } ctx.restore(); });
+    txt(CHARS[sel].name + ' - ' + CHARS[sel].desc, W / 2, 215, 8, '#ffb090'); drawOverlay(); return;
   }
   if (state === 'stages') return drawStages();
   if (state === 'end') { cityBG(); txt('PROJECT ONE', W / 2, 90, 20); txt('COMPLEET!', W / 2, 120, 12, '#ffd84a'); txt('BEDANKT VOOR HET SPELEN', W / 2, 150, 8); txt('PRESS ENTER', W / 2, 190, 8); return; }
-  ctx.save(); if (shake > 0) ctx.translate(Math.round((Math.random() - .5) * shake * .6), Math.round((Math.random() - .5) * shake * .6));
-  const th = LV.theme; drawBG(th); drawTiles(th);
+  ctx.setTransform(S * ZOOM, 0, 0, S * ZOOM, 0, 0); ctx.save(); if (shake > 0) ctx.translate(Math.round((Math.random() - .5) * shake * .6), Math.round((Math.random() - .5) * shake * .6));
+  const th = LV.theme; drawBG(th); ctx.translate(0, -Math.round(camY)); drawTiles(th);
   if (CHECK) R_(CHECK - camX + 6, 10 * T, 3, 2 * T, spawnX >= CHECK ? '#ffe14a' : '#888');
   for (const e of enemies) drawEnemy(e);
   drawBoss();
   if (state !== 'dead') drawPlayer();
-  drawFX(); ctx.restore();
+  drawFX(); ctx.restore(); ctx.setTransform(S, 0, 0, S, 0, 0);
   drawHUD();
   if (state === 'clear') { txt('STAGE CLEAR!', W / 2, 100, 16, '#ffd84a'); if (clearT > 200 && (t >> 5) % 2) txt('PRESS ENTER', W / 2, 140, 8); }
   drawOverlay();

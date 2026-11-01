@@ -61,7 +61,7 @@ function buildTiles(th) {
     out.spike = c; }
   return out;
 }
-function drawTiles(th) {
+function drawTilesProc(th) {
   const old = IMG['tiles' + th], A = ART.tiles[th] || (ART.tiles[th] = buildTiles(th));
   const c0 = Math.floor(camX / T), c1 = c0 + W / T + 1;
   for (let r = 0; r < ROWS; r++) for (let c = c0; c <= c1 && c < COLS; c++) {
@@ -154,7 +154,7 @@ function buildBG(th) {
   }
   return [{ c: c0, s: .12 }, { c: c1, s: .3 }, { c: c2, s: .55 }];
 }
-function drawBG(th, cam = camX) {
+function drawBGProc(th, cam = camX) {
   const old = IMG['bg' + th];
   if (old) { const w = old.width; for (let x = -((cam * .4) % w); x < W; x += w) ctx.drawImage(old, Math.round(x), 0); return; }
   const layers = ART.bg[th] || (ART.bg[th] = buildBG(th));
@@ -204,7 +204,7 @@ function drawSprite(name, e, flip) {
   const im = IMG[name]; ctx.save(); ctx.translate(Math.round(e.x + e.w / 2 - camX), Math.round(e.y + e.h));
   if (flip) ctx.scale(-1, 1); ctx.drawImage(im, -im.width / 2, -im.height); ctx.restore();
 }
-function drawPlayer() {
+function drawPlayerProc() {
   const p = player; if (p.inv > 0 && Math.floor(p.inv / 3) % 2) return;
   if (IMG['player' + charId]) return drawSprite('player' + charId, p, p.face < 0);
   const pose = !p.ground ? 'jump' : Math.abs(p.vx) > .1 ? 'run' : 'idle';
@@ -228,7 +228,7 @@ function buildTurretBase() {
   P(7, 5, 5, 4, '#14181c'); P(8, 6, 2, 2, '#ff3a20'); P(8, 6, 1, 1, '#ffc0b0');
   return outline(c);
 }
-function drawEnemy(e) {
+function drawEnemyProc(e) {
   if (IMG[e.type]) return drawSprite(e.type, e, e.face > 0);
   const cx = e.x + e.w / 2 - camX;
   if (e.type === 'grunt') drawChar(e, EPAL, 0, e.face, e.vx ? 'run' : 'idle', Math.floor(e.t / 6), !e.vx, 1, 'rgba(255,150,40,.6)');
@@ -269,7 +269,7 @@ function buildBoss(id) {
   else { P(19, 3, 9, 2, '#c8967a'); P(19, 3, 9, 1, '#e8b898'); P(19, 10, 8, 3, '#b0b0b8'); P(22, 6, 5, 1, '#202028'); eye(); P(27, 6, 3, 5, '#8a9ab8'); }
   return outline(c);
 }
-function drawBoss() {
+function drawBossProc() {
   const b = boss; if (!b) return;
   if (IMG['boss' + b.id]) return drawSprite('boss' + b.id, b, b.face > 0);
   const s = ART.spr['boss' + b.id] || (ART.spr['boss' + b.id] = buildBoss(b.id)), k = b.id === 4 ? 1.4 : 1;
