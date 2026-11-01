@@ -35,7 +35,7 @@ function syncMusic() {
   } catch (e) {}
 }
 function unlockMusic() { musicUnlocked = true; syncMusic(); }
-addEventListener('keydown', unlockMusic); addEventListener('pointerdown', unlockMusic); addEventListener('touchstart', unlockMusic, { passive: true });
+// Muziek start pas als je op het titelscherm op START drukt (die toets/tik geeft de browser toestemming om geluid af te spelen).
 document.addEventListener('visibilitychange', () => { if (bgm) { if (document.hidden) bgm.pause(); else syncMusic(); } });
 function toggleMute() { muted = !muted; try { localStorage.setItem('p1_muted', muted ? '1' : '0'); } catch (e) {} if (bgm) bgm.muted = muted; }
 
@@ -249,7 +249,7 @@ function updateBoss() {
 function update() {
   t++;
   if (pressed.mute) toggleMute();
-  if (state === 'title') { if (pressed.start || pressed.jump) { state = 'select'; sel = charId; sfx(660, .1); } return; }
+  if (state === 'title') { if (pressed.start || pressed.jump) { state = 'select'; sel = charId; sfx(660, .1); unlockMusic(); } return; }
   if (state === 'select') {
     if (pressed.left || pressed.right) { sel = 1 - sel; sfx(440, .05); }
     if (pressed.start || pressed.jump) { charId = sel; state = 'stages'; sfx(660, .1); }
